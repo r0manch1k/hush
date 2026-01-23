@@ -1,0 +1,20 @@
+#ifndef DATABASE_H
+#define DATABASE_H
+
+#include <string>
+#include <vector>
+
+struct PasswordEntry {
+    std::string title;
+    std::string username;
+    std::string password;
+};
+
+// extern говорит: "эта штука есть где-то в другом месте"
+extern std::vector<PasswordEntry> db_entries;
+extern std::string current_db_path;
+
+bool db_load_file(const std::string& filepath, const std::string& master_pass);
+bool db_save_file(const std::string& filepath, const std::string& master_pass);
+
+#endif
