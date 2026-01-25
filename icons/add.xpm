@@ -1,9 +1,8 @@
 #pragma once
 static const char *add_xpm[] = {
-"16 16 3 1",
+"16 16 2 1",
 "   c None",
-"x  c #00aa00",
-"@  c #005500",
+"@  c #000000",
 "                ",
 "                ",
 "                ",

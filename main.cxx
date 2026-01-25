@@ -11,7 +11,6 @@
 #include <FL/Fl_File_Chooser.H>
 
 #include "database.h"
-#include "icons/save.xpm"
 #include "icons/add.xpm"
 #include "icons/edit.xpm"
 #include "icons/delete.xpm"
@@ -60,8 +59,8 @@ void save_as_cb(Fl_Widget*, void*);
 
 bool ensure_db_exists() {
     if (current_db_path.empty()) {
-        int choice = fl_choice("No database is open. Would you like to create a new database file first?", 
-                               "Cancel", "Create New", nullptr);
+        int choice = fl_choice("No database is open. Would you like to create a new one?", 
+                               "Cancel", "New", nullptr);
         if (choice == 1) {
             save_as_cb(nullptr, nullptr);
             return !current_db_path.empty(); 
@@ -77,9 +76,9 @@ void search_cb(Fl_Widget* i, void*) {
 }
 
 void open_db_cb(Fl_Widget*, void*) {
-    const char* file = fl_file_chooser("Open Hush DB", "*.hush", nullptr);
+    const char* file = fl_file_chooser("Open database", "*.hush", nullptr);
     if (file) {
-        const char* p = fl_password("Master Password:", "");
+        const char* p = fl_password("Password:", "");
         if (p && db_load_file(file, p)) {
             global_master_pass = p;
             update_browser();
@@ -91,9 +90,9 @@ void open_db_cb(Fl_Widget*, void*) {
 }
 
 void save_as_cb(Fl_Widget*, void*) {
-    const char* file = fl_file_chooser("Save Database", "*.hush", "vault.hush");
+    const char* file = fl_file_chooser("Save database", "*.hush", "vault.hush");
     if (file) {
-        const char* p = fl_password("Set Master Password:", "");
+        const char* p = fl_password("Set password:", "");
         if (p) {
             global_master_pass = p;
             db_save_file(file, p);
@@ -160,7 +159,7 @@ void about_cb(Fl_Widget*, void*) {
         "Hush Password Manager v1.0\n\n"
         "A simple, secure, and fast password vault.\n"
         "Built with C++ and FLTK.\n\n"
-        "Format: .hush (Binary Database)"
+        "Made by Roman Sokolovsky, Ruslan Kutorgin."
     );
 }
 
@@ -170,35 +169,34 @@ void quit_cb(Fl_Widget*, void*) {
 
 
 int main(int argc, char **argv) {
-    static Fl_Pixmap img_save(save_xpm), img_add(add_xpm), img_edit(edit_xpm), img_del(delete_xpm);
+    static Fl_Pixmap img_add(add_xpm), img_edit(edit_xpm), img_del(delete_xpm);
 
-    editor_win = new Fl_Double_Window(280, 140, "New Entry");
-    in_title = new Fl_Input(80, 10, 180, 25, "Title:");
-    in_user  = new Fl_Input(80, 40, 180, 25, "User:");
-    in_pass  = new Fl_Secret_Input(80, 70, 180, 25, "Pass:");
-    Fl_Button* b_ok = new Fl_Button(190, 105, 80, 25, "Save");
+    editor_win = new Fl_Double_Window(240, 140, "New Entry");
+    in_title = new Fl_Input(45, 10, 180, 25, "Title:");
+    in_user  = new Fl_Input(45, 40, 180, 25, "User:");
+    in_pass  = new Fl_Secret_Input(45, 70, 180, 25, "Pass:");
+    Fl_Button* b_ok = new Fl_Button(145, 105, 80, 25, "Save");
     b_ok->callback(save_entry_cb);
     editor_win->end();
     editor_win->set_modal();
 
-    main_win = new Fl_Double_Window(480, 320, "Hush - No Database");
+    main_win = new Fl_Double_Window(480, 320, "Hush - no database");
     
     Fl_Menu_Bar* menu = new Fl_Menu_Bar(0, 0, 480, 25);
-    menu->add("&File/&Open...",     FL_META + 'o', open_db_cb);
-    menu->add("&File/&Save As...",  FL_META + 's', save_as_cb);
-    menu->add("&File/&Quit",        FL_META + 'q', quit_cb);
-    menu->add("&Edit/&Add Entry",   FL_META + 'n', add_cb);
-    menu->add("&Edit/&Edit Entry",  FL_META + 'e', edit_cb);
-    menu->add("&Edit/&Delete",      FL_META + FL_BackSpace, delete_cb);
+    menu->add("&Database/&Open      ",     FL_META + 'o', open_db_cb);
+    menu->add("&Database/&Save As   ",  FL_META + 's', save_as_cb);
+    menu->add("&Database/&Quit      ",        FL_META + 'q', quit_cb);
+    menu->add("&Entry/&Add       ",   FL_META + 'n', add_cb);
+    menu->add("&Entry/&Edit      ",  FL_META + 'e', edit_cb);
+    menu->add("&Entry/&Delete    ",      FL_META + FL_BackSpace, delete_cb);
     menu->add("&Help/&About",       0,             about_cb);
 
     Fl_Group* toolbar = new Fl_Group(0, 25, 480, 25);
-    Fl_Button* b1 = new Fl_Button(0, 25, 25, 25);  b1->image(img_save); b1->callback(save_as_cb);
-    Fl_Button* b2 = new Fl_Button(25, 25, 25, 25); b2->image(img_add);  b2->callback(add_cb);
-    Fl_Button* b3 = new Fl_Button(50, 25, 25, 25); b3->image(img_edit); b3->callback(edit_cb);
-    Fl_Button* b4 = new Fl_Button(75, 25, 25, 25); b4->image(img_del);  b4->callback(delete_cb);
+    Fl_Button* b2 = new Fl_Button(0, 25, 25, 25); b2->image(img_add);  b2->callback(add_cb);
+    Fl_Button* b3 = new Fl_Button(25, 25, 25, 25); b3->image(img_edit); b3->callback(edit_cb);
+    Fl_Button* b4 = new Fl_Button(50, 25, 25, 25); b4->image(img_del);  b4->callback(delete_cb);
     
-    search_input = new Fl_Input(105, 25, 370, 25);
+    search_input = new Fl_Input(75, 25, 405, 25);
     search_input->callback(search_cb);
     search_input->when(FL_WHEN_CHANGED);
     toolbar->end();
