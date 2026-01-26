@@ -44,3 +44,5 @@ build
 *.hush
 
 .DS_Store
+
+.vscode

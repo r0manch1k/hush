@@ -1,17 +1,20 @@
 #include "database.h"
+
 #include <fstream>
 
-std::vector<PasswordEntry> db_entries;
-std::string current_db_path = "";
+using namespace std;
 
-bool db_load_file(const std::string& filepath, const std::string& master_pass) {
+vector<PasswordEntry> global_db_entries;
+string                global_db_path = "";
+
+bool db_load_file(const string& filepath, const string& master_pass) {
     // ВАЖНО: Тут вы добавите свою дешифровку
-    if (master_pass != "1234") return false; 
+    if (master_pass != "1234") return false;
 
-    std::ifstream is(filepath, std::ios::binary);
+    ifstream is(filepath, ios::binary);
     if (!is) return false;
 
-    db_entries.clear();
+    global_db_entries.clear();
     size_t count;
     is.read((char*)&count, sizeof(count));
 
@@ -24,12 +27,12 @@ bool db_load_file(const std::string& filepath, const std::string& master_pass) {
         };
         PasswordEntry e;
         read_str(e.title);
-        read_str(e.username);
+        read_str(e.login);
         read_str(e.password);
-        db_entries.push_back(e);
+        global_db_entries.push_back(e);
     }
-    
-    current_db_path = filepath;
+
+    global_db_path = filepath;
     return true;
 }
 
@@ -40,20 +43,20 @@ bool db_save_file(const std::string& filepath, const std::string& master_pass) {
     std::ofstream os(filepath, std::ios::binary);
     if (!os) return false;
 
-    size_t count = db_entries.size();
+    size_t count = global_db_entries.size();
     os.write((char*)&count, sizeof(count));
 
-    for (const auto& e : db_entries) {
+    for (const auto& e : global_db_entries) {
         auto write_str = [&](const std::string& s) {
             size_t len = s.length();
             os.write((char*)&len, sizeof(len));
             os.write(s.data(), len);
         };
         write_str(e.title);
-        write_str(e.username);
+        write_str(e.login);
         write_str(e.password);
     }
 
-    current_db_path = filepath;
+    global_db_path = filepath;
     return true;
 }

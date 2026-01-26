@@ -29,3 +29,9 @@ sudo make install
 ```sh
 make run
 ```
+
+Для форматирования кода используем `.clang-format`, который нужно скачать и настроить в своей IDE
+
+```sh
+brew install clang-format
+```
