@@ -1,0 +1,3 @@
+[submodule "external/advobfuscator"]
+	path = external/advobfuscator
+	url = https://github.com/andrivet/advobfuscator.git

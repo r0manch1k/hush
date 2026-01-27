@@ -1,13 +1,23 @@
 #include "database.h"
 
+#include <advobfuscator/aes.h>
+#include <advobfuscator/aes_string.h>
+#include <advobfuscator/bytes.h>
+#include <advobfuscator/string.h>
+
 #include <fstream>
+#include <iostream>
 
 using namespace std;
+using namespace andrivet::advobfuscator;
 
 vector<PasswordEntry> global_db_entries;
 string                global_db_path = "";
 
 bool db_load_file(const string& filepath, const string& master_pass) {
+    // Использовать обфускацию при необходимости (см. external/advobfuscator/Examples/demo)
+    cout << "abc"_obf << '\n';
+
     // ВАЖНО: Тут вы добавите свою дешифровку
     if (master_pass != "1234") return false;
 
