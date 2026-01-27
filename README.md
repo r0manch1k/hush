@@ -9,7 +9,7 @@
 ```sh
 brew install cmake
 
-curl -L -O https://github.com/fltk/fltk/releases/download/release-1.4.4/fltk-1.4 4-source.tar.gz
+curl -L -O https://github.com/fltk/fltk/releases/download/release-1.4.4/fltk-1.4.4-source.tar.gz
 
 tar -xzf fltk-1.4.4-source.tar.gz
 
