@@ -39,3 +39,7 @@ target_link_libraries(Hush PRIVATE
     fltk::fltk
     advobfuscator
 )
+
+# Поддержка потоков для автоочистки буфера обмена
+find_package(Threads REQUIRED)
+target_link_libraries(Hush PRIVATE Threads::Threads)
