@@ -12,8 +12,6 @@
 
 #include <format>
 
-#include "components/overlay/entry.h"
-#include "components/overlay/overlay.h"
 #include "database.h"
 #include "icons/add.xpm"
 #include "icons/delete.xpm"
@@ -21,32 +19,19 @@
 
 using namespace std;
 
-const int W = 480;
-const int H = 320;
-
+// Название базы данных по умолчанию
 const char* const FN_DEFAULT = "keepit.hush";
 
-enum class OverlayType { Main, Editor, Password, Confirm };
-
-enum class EditMode { Add, Edit };
-
-OverlayType global_overlay = OverlayType::Main;
-EditMode    global_editor_mode;
+// Префикс w_ значит, что моя переменная (функция) связана с графическим интерфейсом
+Fl_Double_Window* w_main_win     = nullptr;
+Fl_Hold_Browser*  w_main_browser = nullptr;
+Fl_Double_Window* w_editor_win   = nullptr;
+Fl_Input *        w_title_input = nullptr, *w_login_input = nullptr, *w_search_input = nullptr;
+Fl_Secret_Input*  w_pass_input = nullptr;
 
 string global_pass = "";
 
 int global_edit_mode = -1;
-
-Fl_Double_Window* global_main_win = nullptr;
-
-
-Fl_Hold_Browser*  global_main_browser = nullptr;
-Fl_Double_Window* global_editor_win   = nullptr;
-Fl_Input*         global_title_input  = nullptr;
-Fl_Input*         global_login_input  = nullptr;
-Fl_Input*         global_search_input = nullptr;
-Fl_Secret_Input*  global_pass_input   = nullptr;
-
 
 // Нужна для формирования строки, отображаемой в списке паролей
 string format_entry(const string title, const string login) {
@@ -54,7 +39,7 @@ string format_entry(const string title, const string login) {
 }
 
 void update_title() {
-    if (!global_main_win) return;
+    if (!w_main_win) return;
 
     const char* label;
 
@@ -67,24 +52,24 @@ void update_title() {
         label = format("Hush - {}", FN_DEFAULT).c_str();
     }
 
-    global_main_win->label(label);
+    w_main_win->label(label);
 }
 
 void update_browser(const char* filter = nullptr) {
-    if (!global_main_browser) return;
+    if (!w_main_browser) return;
 
-    global_main_browser->clear();
+    w_main_browser->clear();
 
     string f = filter ? filter : "";
 
     for (const auto& entry : global_db_entries) {
         if (f.empty() || entry.title.find(f) != string::npos) {
-            global_main_browser->add(format_entry(entry.title, entry.login).c_str());
+            w_main_browser->add(format_entry(entry.title, entry.login).c_str());
         }
     }
 }
 
-void search_callback(Fl_Widget* i, void*) {
+void search(Fl_Widget* i, void*) {
     update_browser(((Fl_Input*)i)->value());
 }
 
@@ -141,19 +126,19 @@ void w_save_as(Fl_Widget*, void*) {
     update_title();
 }
 
-void add_callback(Fl_Widget*, void*) {
+void w_add(Fl_Widget*, void*) {
     if (!db_exists()) return;
     global_edit_mode = -1;
-    global_title_input->value("");
-    global_login_input->value("");
-    global_pass_input->value("");
-    global_editor_win->label("New Entry");
-    global_editor_win->show();
+    w_title_input->value("");
+    w_login_input->value("");
+    w_pass_input->value("");
+    w_editor_win->label("New Entry");
+    w_editor_win->show();
 }
 
-void edit_callback(Fl_Widget*, void*) {
+void w_edit(Fl_Widget*, void*) {
     if (!db_exists()) return;
-    int v = global_main_browser->value();
+    int v = w_main_browser->value();
 
     if (v <= 0) {
         fl_alert("Please select an entry to edit.");
@@ -162,17 +147,17 @@ void edit_callback(Fl_Widget*, void*) {
 
     global_edit_mode = v - 1;
     PasswordEntry& e = global_db_entries[global_edit_mode];
-    global_title_input->value(e.title.c_str());
-    global_login_input->value(e.login.c_str());
-    global_pass_input->value(e.password.c_str());
-    global_editor_win->label("Edit Entry");
-    global_editor_win->show();
+    w_title_input->value(e.title.c_str());
+    w_login_input->value(e.login.c_str());
+    w_pass_input->value(e.password.c_str());
+    w_editor_win->label("Edit Entry");
+    w_editor_win->show();
 }
 
-void delete_callback(Fl_Widget*, void*) {
+void w_delete(Fl_Widget*, void*) {
     if (!db_exists()) return;
 
-    int v = global_main_browser->value();
+    int v = w_main_browser->value();
 
     if (v <= 0) {
         fl_alert("Error! Attempt to delete non-existing entry.");
@@ -182,16 +167,15 @@ void delete_callback(Fl_Widget*, void*) {
     if (fl_choice("Are you sure you want to delete this entry?", "Cancel", "Delete", nullptr) ==
         1) {
         global_db_entries.erase(global_db_entries.begin() + (v - 1));
-        update_browser(global_search_input->value());
+        update_browser(w_search_input->value());
         autosave();
     }
 }
 
-void global_save_entry_callback(Fl_Widget*, void*) {
-    if (strlen(global_title_input->value()) == 0) return;
+void w_save_entry(Fl_Widget*, void*) {
+    if (strlen(w_title_input->value()) == 0) return;
 
-    PasswordEntry entry = {global_title_input->value(), global_login_input->value(),
-                           global_pass_input->value()};
+    PasswordEntry entry = {w_title_input->value(), w_login_input->value(), w_pass_input->value()};
 
     if (global_edit_mode >= 0) {
         global_db_entries[global_edit_mode] = entry;
@@ -199,8 +183,8 @@ void global_save_entry_callback(Fl_Widget*, void*) {
         global_db_entries.push_back(entry);
     }
 
-    update_browser(global_search_input->value());
-    global_editor_win->hide();
+    update_browser(w_search_input->value());
+    w_editor_win->hide();
     autosave();
 }
 
@@ -218,49 +202,51 @@ void w_quit(Fl_Widget*, void*) {
 }
 
 int main(int argc, char** argv) {
-    static Fl_Pixmap add_img(add_xpm), edit_img(edit_xpm), del_img(delete_xpm);
+    static Fl_Pixmap img_add(add_xpm), img_edit(edit_xpm), img_del(delete_xpm);
 
-    // Инициализация всех накладываемых окон
-    overlay::init(0, 0, W, H);
+    w_editor_win    = new Fl_Double_Window(240, 140, "New Entry");
+    w_title_input   = new Fl_Input(45, 10, 180, 25, "Title:");
+    w_login_input   = new Fl_Input(45, 40, 180, 25, "User:");
+    w_pass_input    = new Fl_Secret_Input(45, 70, 180, 25, "Pass:");
+    Fl_Button* b_ok = new Fl_Button(145, 105, 80, 25, "Save");
+    b_ok->callback(w_save_entry);
+    w_editor_win->end();
+    w_editor_win->set_modal();
 
-    global_main_win = new Fl_Double_Window(W, H, "Hush - no database");
+    w_main_win = new Fl_Double_Window(480, 320, "Hush - no database");
 
-    Fl_Menu_Bar* menu = new Fl_Menu_Bar(0, 0, W, 25);
+    Fl_Menu_Bar* menu = new Fl_Menu_Bar(0, 0, 480, 25);
     menu->add("&Database/&Open      ", FL_META + 'o', w_open);
     menu->add("&Database/&Save As   ", FL_META + 's', w_save_as);
     menu->add("&Database/&Quit      ", FL_META + 'q', w_quit);
-    menu->add("&Entry/&Add       ", FL_META + 'n', add_callback);
-    menu->add("&Entry/&Edit      ", FL_META + 'e', edit_callback);
-    menu->add("&Entry/&Delete    ", FL_META + FL_BackSpace, delete_callback);
+    menu->add("&Entry/&Add       ", FL_META + 'n', w_add);
+    menu->add("&Entry/&Edit      ", FL_META + 'e', w_edit);
+    menu->add("&Entry/&Delete    ", FL_META + FL_BackSpace, w_delete);
     menu->add("&Help/&About", 0, w_about);
 
-    Fl_Group* toolbar = new Fl_Group(0, 25, W, 25);
+    Fl_Group*  toolbar = new Fl_Group(0, 25, 480, 25);
+    Fl_Button* b2      = new Fl_Button(0, 25, 25, 25);
+    b2->image(img_add);
+    b2->callback(w_add);
+    Fl_Button* b3 = new Fl_Button(25, 25, 25, 25);
+    b3->image(img_edit);
+    b3->callback(w_edit);
+    Fl_Button* b4 = new Fl_Button(50, 25, 25, 25);
+    b4->image(img_del);
+    b4->callback(w_delete);
 
-    Fl_Button* add_btn = new Fl_Button(0, 25, 25, 25);
-    add_btn->image(add_img);
-    add_btn->callback(add_callback);
-
-    Fl_Button* edit_btn = new Fl_Button(25, 25, 25, 25);
-    edit_btn->image(edit_img);
-    edit_btn->callback(edit_callback);
-
-    Fl_Button* del_btn = new Fl_Button(2 * 25, 25, 25, 25);
-    del_btn->image(del_img);
-    del_btn->callback(delete_callback);
-
-    global_search_input = new Fl_Input(3 * 25, 25, W - 3 * 25, 25);
-    global_search_input->callback(search_callback);
-    global_search_input->when(FL_WHEN_CHANGED);
+    w_search_input = new Fl_Input(75, 25, 405, 25);
+    w_search_input->callback(search);
+    w_search_input->when(FL_WHEN_CHANGED);
     toolbar->end();
 
-    global_main_browser = new Fl_Hold_Browser(0, 2 * 25, W, H - 2 * 25);
+    w_main_browser      = new Fl_Hold_Browser(0, 50, 480, 270);
     static int widths[] = {200, 200, 0};
-    global_main_browser->column_widths(widths);
-    global_main_browser->column_char('\t');
+    w_main_browser->column_widths(widths);
+    w_main_browser->column_char('\t');
 
-    global_main_win->resizable(global_main_browser);
-    global_main_win->end();
-    global_main_win->show(argc, argv);
-
+    w_main_win->resizable(w_main_browser);
+    w_main_win->end();
+    w_main_win->show(argc, argv);
     return Fl::run();
 }
