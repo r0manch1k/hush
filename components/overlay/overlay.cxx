@@ -6,39 +6,26 @@
 
 namespace overlay {
 
-static Type   current_ = Type::None;
-static Entry* entry_   = nullptr;
-
 int Base::handle(int e) {
+    if (Fl_Group::handle(e)) return 1;
+
     if (e == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
-        overlay::hide();
+        hide();
         return 1;
     }
-    return Fl_Group::handle(e);
-}
 
-void init(int X, int Y, int W, int H) {
-    entry_ = new Entry(X, Y, W, H);
-}
+    switch (e) {
+        case FL_PUSH:
+        case FL_RELEASE:
+        case FL_DRAG:
+        case FL_MOVE:
+        case FL_FOCUS:
+        case FL_UNFOCUS:
+        case FL_KEYDOWN:
+        case FL_KEYUP: return 1;
+    }
 
-void show(Type type) {
-    hide();
-    current_ = type;
-
-    if (type == Type::Entry) entry_->show(Mode::Add);
-}
-
-void hide() {
-    if (entry_) entry_->hide();
-    current_ = Type::None;
-}
-
-Type current() {
-    return current_;
-}
-
-Entry& entry() {
-    return *entry_;
+    return 0;
 }
 
 }  // namespace overlay

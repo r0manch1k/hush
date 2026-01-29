@@ -11,10 +11,11 @@
 using namespace std;
 using namespace andrivet::advobfuscator;
 
-vector<PasswordEntry> global_db_entries;
-string                global_db_path = "";
+// vector<PasswordEntry> global_db_entries;
+// string                global_db_path = "";
 
-bool db_load_file(const string& filepath, const string& master_pass) {
+bool db_load_file(vector<PasswordEntry>* entries, string* path, const string& filepath,
+                  const string& master_pass) {
     // Использовать обфускацию при необходимости (см. external/advobfuscator/Examples/demo)
     cout << "abc"_obf << '\n';
 
@@ -24,7 +25,7 @@ bool db_load_file(const string& filepath, const string& master_pass) {
     ifstream is(filepath, ios::binary);
     if (!is) return false;
 
-    global_db_entries.clear();
+    entries->clear();
     size_t count;
     is.read((char*)&count, sizeof(count));
 
@@ -39,24 +40,25 @@ bool db_load_file(const string& filepath, const string& master_pass) {
         read_str(e.title);
         read_str(e.login);
         read_str(e.password);
-        global_db_entries.push_back(e);
+        entries->push_back(e);
     }
 
-    global_db_path = filepath;
+    *path = filepath;
     return true;
 }
 
-bool db_save_file(const std::string& filepath, const std::string& master_pass) {
+bool db_save_file(vector<PasswordEntry>* entries, string* path, const std::string& filepath,
+                  const std::string& master_pass) {
     if (filepath.empty() || master_pass.empty()) return false;
 
     // ВАЖНО: Тут вы добавите свое шифрование перед записью
     std::ofstream os(filepath, std::ios::binary);
     if (!os) return false;
 
-    size_t count = global_db_entries.size();
+    size_t count = entries->size();
     os.write((char*)&count, sizeof(count));
 
-    for (const auto& e : global_db_entries) {
+    for (const auto& e : *entries) {
         auto write_str = [&](const std::string& s) {
             size_t len = s.length();
             os.write((char*)&len, sizeof(len));
@@ -67,6 +69,6 @@ bool db_save_file(const std::string& filepath, const std::string& master_pass) {
         write_str(e.password);
     }
 
-    global_db_path = filepath;
+    *path = filepath;
     return true;
 }

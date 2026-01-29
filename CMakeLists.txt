@@ -25,8 +25,11 @@ set(BUILD_TESTING OFF CACHE BOOL "Disable advobfuscator tests")
 add_subdirectory(external/advobfuscator)
 
 add_executable(Hush WIN32 MACOSX_BUNDLE 
-    main.cxx 
-    database.cxx 
+    main.cxx
+    database.cxx
+    components/mainwindow.cxx
+    components/overlay/entry.cxx
+    components/overlay/overlay.cxx
     ${ICNS}
 )
 

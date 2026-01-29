@@ -7,27 +7,25 @@
 
 namespace overlay {
 
-enum class Mode { Add, Edit };
-
 class Entry final : public Base {
    public:
-    Entry(int X, int Y, int W, int H);
+    using Okay   = void (*)(const char*, const char*, const char*);
+    using Cancel = void (*)();
 
-    Type type() const override { return Type::Entry; }
-
-    void show(Mode mode);
-
+    Entry(int X, int Y, int W, int H, Okay ok, Cancel cancel);
     const char* title() const;
     const char* login() const;
     const char* password() const;
-
-    void set(const char* title, const char* login, const char* pass);
+    void        set(const char* title, const char* login, const char* pass);
+    void        clear();
 
    private:
-    Mode             mode_;
-    Fl_Input*        title_;
-    Fl_Input*        login_;
-    Fl_Secret_Input* pass_;
+    Fl_Input*        _title;
+    Fl_Input*        _login;
+    Fl_Secret_Input* _password;
+
+    Okay   ok_;
+    Cancel cancel_;
 };
 
 }  // namespace overlay
