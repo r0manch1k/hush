@@ -193,6 +193,14 @@ bool db_load_file(const string& filepath, const string& masterPassword) {
             memcpy(&entry.is_favorite, decrypted.data() + pos, sizeof(bool));
             pos += sizeof(bool);
         }
+        // Читаем поля физического ключа (для обратной совместимости проверяем размер)
+        if (pos + sizeof(bool) <= decrypted.size()) {
+            memcpy(&entry.requires_hardware_key, decrypted.data() + pos, sizeof(bool));
+            pos += sizeof(bool);
+        }
+        if (pos < decrypted.size()) {
+            read_string(entry.hardware_key_fingerprint);
+        }
         g_passwordEntries.push_back(entry);
     }
 
@@ -220,6 +228,8 @@ bool db_save_file(const string& filepath, const string& masterPassword) {
         write_string(entry.login);
         write_string(entry.password);
         plaintext.append((char*)&entry.is_favorite, sizeof(bool));
+        plaintext.append((char*)&entry.requires_hardware_key, sizeof(bool));
+        write_string(entry.hardware_key_fingerprint);
     }
 
     string encrypted = encrypt_data(plaintext, masterPassword);

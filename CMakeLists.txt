@@ -43,3 +43,10 @@ target_link_libraries(Hush PRIVATE
 # Поддержка потоков для автоочистки буфера обмена
 find_package(Threads REQUIRED)
 target_link_libraries(Hush PRIVATE Threads::Threads)
+
+# Поддержка IOKit для работы с USB устройствами (macOS)
+if(APPLE)
+    find_library(IOKIT_LIBRARY IOKit)
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    target_link_libraries(Hush PRIVATE ${IOKIT_LIBRARY} ${COREFOUNDATION_LIBRARY})
+endif()
