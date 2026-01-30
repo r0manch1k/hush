@@ -73,7 +73,7 @@ inline std::string password_strength_text(int strength) {
 // Копирование в буфер обмена (macOS)
 inline void copy_to_clipboard(const std::string& text) {
 #ifdef __APPLE__
-    std::string cmd = "echo -n '" + text + "' | pbcopy";
+    std::string cmd = "echo '" + text + "' | pbcopy";
     system(cmd.c_str());
 #endif
 }
@@ -81,7 +81,7 @@ inline void copy_to_clipboard(const std::string& text) {
 // Очистка буфера обмена (macOS)
 inline void clear_clipboard() {
 #ifdef __APPLE__
-    system("echo -n '' | pbcopy");
+    system("echo '' | pbcopy");
 #endif
 }
 

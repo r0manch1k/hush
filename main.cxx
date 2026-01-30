@@ -112,7 +112,7 @@ void updateBrowser(const char* filter = nullptr) {
             // Индикатор физического ключа
             if (entry.requires_hardware_key) {
                 bool connected = hardware_key::is_device_connected(entry.hardware_key_fingerprint);
-                display += connected ? "  \xF0\x9F\x94\x91" : "  \xE2\x9A\xA0";
+                display += connected ? "  [Hardware ON]" : "  [Hardware OFF]";
             }
             entriesBrowser->add(display.c_str());
         }
@@ -122,14 +122,14 @@ void updateBrowser(const char* filter = nullptr) {
     for (const auto& entry : g_passwordEntries) {
         if (!entry.is_favorite &&
             (filterText.empty() || entry.title.find(filterText) != string::npos)) {
-            string display = format("  {}", entry.title);
+            string display = format("'{}'", entry.title);
             if (!entry.login.empty()) {
-                display += format("  {}", entry.login);
+                display += format(" - {}", entry.login);
             }
             // Индикатор физического ключа
             if (entry.requires_hardware_key) {
                 bool connected = hardware_key::is_device_connected(entry.hardware_key_fingerprint);
-                display += connected ? "  \xF0\x9F\x94\x91" : "  \xE2\x9A\xA0";
+                display += connected ? "  [Hardware ON]" : "  [Hardware OFF]";
             }
             entriesBrowser->add(display.c_str());
         }
