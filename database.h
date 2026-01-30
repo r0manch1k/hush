@@ -8,7 +8,9 @@ struct PasswordEntry {
     std::string title;
     std::string login;
     std::string password;
-    bool        is_favorite = false;
+    bool        is_favorite         = false;
+    bool        requires_hardware_key = false;  // Требуется ли физический ключ
+    std::string hardware_key_fingerprint = "";  // Fingerprint физического устройства
 };
 
 extern std::vector<PasswordEntry> g_passwordEntries;
