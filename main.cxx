@@ -16,6 +16,7 @@
 #include <thread>
 
 #include "database.h"
+#include "hardware_key.h"
 #include "icons/add.xpm"
 #include "icons/delete.xpm"
 #include "icons/edit.xpm"
@@ -36,10 +37,13 @@ Fl_Input*         searchInput         = nullptr;
 Fl_Secret_Input*  passwordInput       = nullptr;
 Fl_Button*        showPasswordBtn     = nullptr;
 Fl_Button*        generatePasswordBtn = nullptr;
-Fl_Button*        copyPasswordBtn     = nullptr;
-Fl_Box*           strengthIndicator   = nullptr;
-Fl_Check_Button*  favoriteCheckbox    = nullptr;
-Fl_Box*           clipboardTimerLabel = nullptr;
+Fl_Button*        copyPasswordBtn       = nullptr;
+Fl_Box*           strengthIndicator     = nullptr;
+Fl_Check_Button*  favoriteCheckbox      = nullptr;
+Fl_Check_Button*  hardwareKeyCheckbox   = nullptr;
+Fl_Choice*        hardwareKeyChoice     = nullptr;
+Fl_Box*           hardwareKeyStatus     = nullptr;
+Fl_Box*           clipboardTimerLabel   = nullptr;
 
 // Application State
 string g_masterPassword    = "";
@@ -69,6 +73,8 @@ void exitApplication(Fl_Widget*, void*);
 void openDatabase(Fl_Widget*, void*);
 void tryOpenLastDatabase();
 int  findActualIndex(int displayIndex);
+void toggleHardwareKey(Fl_Widget*, void*);
+void updateHardwareKeyUI();
 
 string formatEntry(const string title, const string login) {
     return format("  {}  │  {}", title, login);
@@ -103,6 +109,11 @@ void updateBrowser(const char* filter = nullptr) {
             if (!entry.login.empty()) {
                 display += format("  {}", entry.login);
             }
+            // Индикатор физического ключа
+            if (entry.requires_hardware_key) {
+                bool connected = hardware_key::is_device_connected(entry.hardware_key_fingerprint);
+                display += connected ? "  \xF0\x9F\x94\x91" : "  \xE2\x9A\xA0";
+            }
             entriesBrowser->add(display.c_str());
         }
     }
@@ -114,6 +125,11 @@ void updateBrowser(const char* filter = nullptr) {
             string display = format("  {}", entry.title);
             if (!entry.login.empty()) {
                 display += format("  {}", entry.login);
+            }
+            // Индикатор физического ключа
+            if (entry.requires_hardware_key) {
+                bool connected = hardware_key::is_device_connected(entry.hardware_key_fingerprint);
+                display += connected ? "  \xF0\x9F\x94\x91" : "  \xE2\x9A\xA0";
             }
             entriesBrowser->add(display.c_str());
         }
@@ -306,7 +322,17 @@ void startClipboardTimer() {
 void togglePasswordVisibility(Fl_Widget*, void*) {
     if (!passwordInput) return;
     g_passwordVisible = !g_passwordVisible;
-    showPasswordBtn->label(g_passwordVisible ? "Hide" : "Show");
+
+    // Переключаем режим отображения пароля
+    if (g_passwordVisible) {
+        passwordInput->input_type(FL_NORMAL_INPUT);
+        showPasswordBtn->label("Hide");
+    } else {
+        passwordInput->input_type(FL_SECRET_INPUT);
+        showPasswordBtn->label("Show");
+    }
+
+    passwordInput->redraw();
     showPasswordBtn->redraw();
 }
 
@@ -336,7 +362,17 @@ void copyPasswordFromBrowser(Fl_Widget*, void*) {
 
     int actualIndex = findActualIndex(displayIndex);
     if (actualIndex >= 0) {
-        password_utils::copy_to_clipboard(g_passwordEntries[actualIndex].password);
+        const auto& entry = g_passwordEntries[actualIndex];
+
+        // Проверяем наличие физического ключа
+        if (entry.requires_hardware_key && !entry.hardware_key_fingerprint.empty()) {
+            if (!hardware_key::is_device_connected(entry.hardware_key_fingerprint)) {
+                fl_alert("Hardware key is required but not connected!");
+                return;
+            }
+        }
+
+        password_utils::copy_to_clipboard(entry.password);
         startClipboardTimer();
     }
 }
@@ -384,6 +420,9 @@ void addEntry(Fl_Widget*, void*) {
     titleInput->value("");
     loginInput->value("");
     passwordInput->value("");
+    favoriteCheckbox->value(0);
+    hardwareKeyCheckbox->value(0);
+    updateHardwareKeyUI();
     editorWindow->label("New Entry");
     editorWindow->show();
 }
@@ -401,10 +440,21 @@ void editEntry(Fl_Widget*, void*) {
 
     g_editingEntryIndex  = actualIndex;
     PasswordEntry& entry = g_passwordEntries[actualIndex];
+
+    // Проверяем наличие физического ключа при редактировании
+    if (entry.requires_hardware_key && !entry.hardware_key_fingerprint.empty()) {
+        if (!hardware_key::is_device_connected(entry.hardware_key_fingerprint)) {
+            fl_alert("Hardware key is required but not connected!");
+            return;
+        }
+    }
+
     titleInput->value(entry.title.c_str());
     loginInput->value(entry.login.c_str());
     passwordInput->value(entry.password.c_str());
     favoriteCheckbox->value(entry.is_favorite ? 1 : 0);
+    hardwareKeyCheckbox->value(entry.requires_hardware_key ? 1 : 0);
+    updateHardwareKeyUI();
     updatePasswordStrength();
     editorWindow->label("Edit Entry");
     editorWindow->show();
@@ -429,11 +479,72 @@ void deleteEntry(Fl_Widget*, void*) {
     }
 }
 
+void updateHardwareKeyUI() {
+    if (!hardwareKeyCheckbox || !hardwareKeyChoice || !hardwareKeyStatus) return;
+
+    bool enabled = hardwareKeyCheckbox->value() == 1;
+
+    if (enabled) {
+        hardwareKeyChoice->activate();
+        hardwareKeyStatus->show();
+
+        // Обновляем список устройств
+        hardwareKeyChoice->clear();
+        auto devices = hardware_key::get_usb_devices();
+
+        if (devices.empty()) {
+            hardwareKeyChoice->add("No USB devices found");
+            hardwareKeyChoice->value(0);
+            hardwareKeyStatus->copy_label("No devices detected");
+            hardwareKeyStatus->labelcolor(FL_RED);
+        } else {
+            for (const auto& device : devices) {
+                string item = device.name + " (" + device.fingerprint + ")";
+                hardwareKeyChoice->add(item.c_str());
+            }
+            hardwareKeyChoice->value(0);
+
+            string status =
+                format("Detected {} device{}", devices.size(), devices.size() > 1 ? "s" : "");
+            hardwareKeyStatus->copy_label(status.c_str());
+            hardwareKeyStatus->labelcolor(FL_DARK_GREEN);
+        }
+    } else {
+        hardwareKeyChoice->deactivate();
+        hardwareKeyStatus->hide();
+    }
+
+    hardwareKeyChoice->redraw();
+    hardwareKeyStatus->redraw();
+}
+
+void toggleHardwareKey(Fl_Widget*, void*) {
+    updateHardwareKeyUI();
+}
+
 void saveEntry(Fl_Widget*, void*) {
     if (strlen(titleInput->value()) == 0) return;
 
-    PasswordEntry entry = {titleInput->value(), loginInput->value(), passwordInput->value(),
-                           favoriteCheckbox->value() == 1};
+    PasswordEntry entry;
+    entry.title       = titleInput->value();
+    entry.login       = loginInput->value();
+    entry.password    = passwordInput->value();
+    entry.is_favorite = favoriteCheckbox->value() == 1;
+
+    // Обрабатываем физический ключ
+    entry.requires_hardware_key = hardwareKeyCheckbox->value() == 1;
+    if (entry.requires_hardware_key) {
+        auto devices = hardware_key::get_usb_devices();
+        int  idx     = hardwareKeyChoice->value();
+        if (idx >= 0 && idx < (int)devices.size()) {
+            entry.hardware_key_fingerprint = devices[idx].fingerprint;
+        } else {
+            fl_alert("Please select a valid hardware key device.");
+            return;
+        }
+    } else {
+        entry.hardware_key_fingerprint = "";
+    }
 
     if (g_editingEntryIndex >= 0) {
         g_passwordEntries[g_editingEntryIndex] = entry;
@@ -464,28 +575,42 @@ void exitApplication(Fl_Widget*, void*) {
 int main(int argc, char** argv) {
     static Fl_Pixmap imgAdd(add_xpm), imgEdit(edit_xpm), imgDelete(delete_xpm);
 
-    editorWindow  = new Fl_Double_Window(340, 210, "New Entry");
-    titleInput    = new Fl_Input(70, 10, 260, 25, "Title:");
-    loginInput    = new Fl_Input(70, 40, 260, 25, "User:");
-    passwordInput = new Fl_Secret_Input(70, 70, 180, 25, "Pass:");
+    editorWindow  = new Fl_Double_Window(360, 315, "New Entry");
+    titleInput    = new Fl_Input(70, 10, 280, 25, "Title:");
+    loginInput    = new Fl_Input(70, 40, 280, 25, "User:");
+    passwordInput = new Fl_Secret_Input(70, 70, 200, 25, "Pass:");
     passwordInput->callback([](Fl_Widget*, void*) { updatePasswordStrength(); });
 
-    showPasswordBtn = new Fl_Button(255, 70, 75, 25, "Show");
+    showPasswordBtn = new Fl_Button(275, 70, 75, 25, "Show");
     showPasswordBtn->callback(togglePasswordVisibility);
 
-    generatePasswordBtn = new Fl_Button(70, 100, 85, 25, "Generate");
+    generatePasswordBtn = new Fl_Button(70, 100, 90, 25, "Generate");
     generatePasswordBtn->callback(generateNewPassword);
 
-    copyPasswordBtn = new Fl_Button(160, 100, 85, 25, "Copy");
+    copyPasswordBtn = new Fl_Button(165, 100, 90, 25, "Copy");
     copyPasswordBtn->callback(copyPasswordFromEditor);
 
-    strengthIndicator = new Fl_Box(250, 100, 80, 25, "");
+    // Индикатор строгости пароля на отдельной строке
+    strengthIndicator = new Fl_Box(70, 130, 280, 20, "");
     strengthIndicator->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
     strengthIndicator->labelfont(FL_BOLD);
+    strengthIndicator->labelsize(11);
 
-    favoriteCheckbox = new Fl_Check_Button(70, 130, 100, 25, "Favorite");
+    favoriteCheckbox = new Fl_Check_Button(70, 155, 100, 25, "Favorite");
 
-    Fl_Button* okBtn = new Fl_Button(245, 175, 85, 25, "Save");
+    // UI для физического ключа
+    hardwareKeyCheckbox = new Fl_Check_Button(70, 185, 150, 25, "Hardware Key");
+    hardwareKeyCheckbox->callback(toggleHardwareKey);
+
+    hardwareKeyChoice = new Fl_Choice(70, 215, 280, 25, "Device:");
+    hardwareKeyChoice->deactivate();
+
+    hardwareKeyStatus = new Fl_Box(70, 245, 280, 20, "");
+    hardwareKeyStatus->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+    hardwareKeyStatus->labelsize(11);
+    hardwareKeyStatus->hide();
+
+    Fl_Button* okBtn = new Fl_Button(265, 280, 85, 25, "Save");
     okBtn->callback(saveEntry);
 
     editorWindow->end();
